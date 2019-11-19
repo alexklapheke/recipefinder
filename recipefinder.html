@@ -1,0 +1,197 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+	<script type="text/javascript" src="http://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<style type="text/css" media="all">
+		body {
+			max-width: 600px;
+			background-position: top;
+			background-size:  cover;
+			background-repeat: no-repeat;
+			background-attachment: fixed;
+			margin: auto;
+			font-family: Lucida Grande, sans-serif;
+			overflow-y: hidden;
+			font-size: 16pt;
+		}
+
+		/* Don't load hi-res background on mobile */
+		@media only screen and (min-width: 600px){
+			body {
+				/* CC-BY-SA-2.0  Credit: Flickr user the_ewan */
+				background-image: url("Flash-lit_macro_Tomatoes.jpg");
+			}
+		}
+
+		a, a:visited {
+			color: #656eaf;
+		}
+
+		#content {
+			background: #ffffff;
+			opacity: 0.95;
+			padding: 24px;
+			height: 100vh;
+			overflow-y: scroll;
+		}
+
+		#query {
+			text-align: center;
+		}
+
+		#results li {
+			list-style-type: disclosure-closed;
+		}
+
+		input, select, button {
+			font-family: Lucida Grande, sans-serif;
+			font-size: 16pt;
+			border: 1px solid #2D2711;;
+			border-radius: 0.5em;
+			background: #E2FFDA;
+			margin: 1em 0.1em;
+			padding: 0em 0.5em;
+		}
+
+		.autocomplete {
+			position: relative;
+			display: inline-block;
+		}
+
+	</style>
+	<script charset="utf-8">
+		function addBox() {
+			var q = document.getElementById("query");
+			var a = document.getElementById("add");
+			var i = q.getElementsByClassName("ingredient_box").length + 1;
+
+			var div = document.createElement("div");
+			var label = document.createElement("label");
+			var input = document.createElement("input");
+			var button = document.createElement("button");
+			var autocomplete = document.createElement("div");
+
+			div.className = "ingredient_box";
+
+			input.className = "ingredient_input";
+			input.setAttribute("name", "ingredient" + i);
+			// input.onkeydown = function(){complete(this);};
+			input.onblur = function(){query(this);};
+
+			label.setAttribute("for", "ingredient" + i);
+			label.innerText = "Ingredient " + i + ": ";
+
+			button.className = "remove";
+			button.onclick = function(){removeBox(this.parentNode)};
+			button.innerHTML = "&minus;";
+
+			autocomplete.className = "autocomplete";
+
+			div.appendChild(label);
+			div.appendChild(input);
+			div.appendChild(button);
+			div.appendChild(autocomplete);
+			q.insertBefore(div, a);
+
+			input.focus()
+		}
+
+		function removeBox(elem) {
+			var q = document.getElementById("query");
+			q.removeChild(elem);
+			renumberBoxes();
+			query();
+		}
+
+		function renumberBoxes() {
+			var q = document.getElementById("query");
+			var boxes = q.getElementsByClassName("ingredient_box");
+			for (var i = 1, len = boxes.length; i <= len; i++) {
+				var box = boxes[i-1];
+				var input = box.getElementsByTagName("input")[0];
+				var label = box.getElementsByTagName("label")[0];
+
+				input.setAttribute("name", "ingredient" + i);
+				label.setAttribute("for", "ingredient" + i);
+
+				label.innerText = "Ingredient " + i + ": ";
+			}
+		}
+
+		function complete(elem) {
+			var prefix = elem.value;
+			var box = elem.parentNode.getElementsByClassName("autocomplete")[0];
+			$.ajax({
+				type: "GET",
+				data: {"prefix": prefix},
+				url: "/cgi-bin/autocomplete.py",
+				async: "asynchronous",
+				success: function(response) {
+					box.innerHTML = "<ul>"
+					for (var i = 0, len = response.length; i < len; i++) {
+						item = response[i];
+						console.log(item);
+						box.innerHTML += "<li>" + item + "</li>";
+					}
+					box.innerHTML += "</ul>"
+				},
+				error: function(xhr, stat, error) {
+					console.log(stat)
+					console.log(error)
+				}
+			});
+		}
+
+		function query() {
+			var terms = [];
+			var inputs = document.getElementsByTagName("input");
+			for (var i = 0, len = inputs.length; i < len; i++) {
+				terms.push(inputs[i].value);
+			}
+			console.log(terms)
+			$.ajax({
+				type: "GET",
+				data: {"list": JSON.stringify(terms)},
+				url: "/cgi-bin/getrecipes.py",
+				async: "asynchronous",
+				success: function(response) {
+					console.log(response)
+					var resultslist = document.getElementById("resultslist");
+					resultslist.innerHTML = "Results (" + response.length + "): <ol>"
+					for (var i = 0, len = response.length; i < len; i++) {
+						recipe = response[i]["recipe"];
+						url = response[i]["url"];
+						if(url != "") {
+							resultslist.innerHTML += "<li><a href=\"" + url + "\">" + recipe + "</a></li>"
+						} else {
+							resultslist.innerHTML += "<li><a href=\"" + url + "\">" + recipe + "</a></li>"
+						}
+					}
+					resultslist.innerHTML += "</ol>"
+				},
+				error: function(xhr, stat, error) {
+					console.log(stat)
+					console.log(error)
+				}
+			});
+		}
+	</script>
+
+	<title>Recipe Finder</title>
+	
+</head>
+<body onload="addBox();">
+	<div id="content">
+		<div id="query">
+			<button id="add" onclick="addBox()">+ Add ingredient</button>
+		</div>
+		<div id="results">
+		<div id="status"></div>
+		<div id="resultslist"></div>
+		</div>
+	</div>
+</body>
+</html>
